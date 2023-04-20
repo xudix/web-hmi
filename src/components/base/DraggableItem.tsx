@@ -4,17 +4,19 @@ import type { DraggableSyntheticListeners } from '@dnd-kit/core';
 import type { Transform } from '@dnd-kit/utilities';
 import { useDraggable } from '@dnd-kit/core';
 import classNames from 'classnames';
-import styles from './Draggable.module.css';
+import styles from './Draggable.module.scss';
 
 interface DraggableItemProps {
   id: string | number;
   style?: React.CSSProperties;
   top: number;
   left: number;
+  height?: number;
+  width?: number;
   children?: ReactNode;
 }
 
-export default function DraggableItem({
+export function DraggableItem({
   id,
   style,
   top,
@@ -69,3 +71,5 @@ const Draggable = forwardRef<HTMLDivElement, Props>(function Draggable(
     </div>
   );
 });
+
+export default DraggableItem;
