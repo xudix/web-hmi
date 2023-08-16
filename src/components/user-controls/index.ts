@@ -1,3 +1,8 @@
 import { TextInput } from './TextInput';
 
-export default { TextInput };
+const hmiComponents = {
+  TextInput: TextInput,
+};
+
+export default hmiComponents;
+//export default { TextInput: TextInput };
