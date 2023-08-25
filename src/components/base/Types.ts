@@ -11,4 +11,14 @@ export interface ComponentConfig {
   x: number;
   y: number;
   style?: React.CSSProperties;
+  symbol?: {
+    controllerName: string;
+    symbolName: string;
+  };
+  value?: any;
 }
+
+/**
+ * Data object received from the controller for data transmission. The structure is {controllerName: {symbolName: value}}.
+ */
+export type SymbolValuesType = Record<string, Record<string, any>>;
