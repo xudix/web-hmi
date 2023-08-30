@@ -35,6 +35,8 @@ const SymbolValuesContext: React.Context<SymbolValuesType> =
  */
 const dataExpirationTime = 2000;
 
+const commLostText = '???';
+
 /**
  * Use this hook if a component need to read the HMI Configurations object
  * @returns The current HMI Configurations
@@ -80,6 +82,66 @@ export function HMIProvider({ children }) {
       socketRef.current?.emit('createHMIClient');
     });
 
+    socketRef.current.on('hmiConfigUpdated', (newConfigs: HMIConfig[]) => {
+      console.log('hmi Config Updated');
+      // initialize the symbolValuesRef, which contains symbol values received from all the server
+      let symbolValuesInit: SymbolValuesType = {};
+      newConfigs.forEach((pageConfig) => {
+        pageConfig.components.forEach((component) => {
+          if (
+            component.symbol &&
+            component.symbol.controllerName &&
+            component.symbol.symbolName
+          ) {
+            if (!symbolValuesInit[component.symbol.controllerName])
+              symbolValuesInit[component.symbol.controllerName] = {};
+            symbolValuesInit[component.symbol.controllerName][
+              component.symbol.symbolName
+            ] = commLostText;
+          }
+        });
+      });
+
+      //console.log(symbolValuesInit);
+
+      setSymbolValues(symbolValuesInit);
+
+      hmiConfigsDispatch({
+        type: 'reloaded',
+        newConfigs: newConfigs,
+      });
+    });
+
+    socketRef.current.on('subscribedData', (data: SymbolValuesType) => {
+      setSymbolValues((previousValue: SymbolValuesType) => {
+        let newSymbolValues = { ...previousValue };
+        for (let controllerName in data) {
+          for (let symbolName in data[controllerName]) {
+            if (dataExpireTimers.current[controllerName + symbolName])
+              clearTimeout(
+                dataExpireTimers.current[controllerName + symbolName]
+              );
+
+            if (newSymbolValues[controllerName]) {
+              newSymbolValues[controllerName][symbolName] =
+                data[controllerName][symbolName];
+              // data expires after a preset time
+              dataExpireTimers.current[controllerName + symbolName] =
+                setTimeout(() => {
+                  setSymbolValues((previous: SymbolValuesType) => {
+                    let newValue = { ...previous };
+                    newValue[controllerName][symbolName] = commLostText;
+                    //console.log(newValue);
+                    return newValue;
+                  });
+                }, dataExpirationTime);
+            }
+          }
+        }
+        return newSymbolValues;
+      });
+    });
+
     return () => {
       if (socketRef.current) {
         socketRef.current.off();
@@ -88,67 +150,67 @@ export function HMIProvider({ children }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (socketRef.current) {
-      socketRef.current.on('hmiConfigUpdated', (newConfigs: HMIConfig[]) => {
-        console.log('hmi Config Updated');
-        // initialize the symbolValuesRef, which contains symbol values received from all the server
-        let symbolValuesInit: SymbolValuesType = {};
-        newConfigs.forEach((pageConfig) => {
-          pageConfig.components.forEach((component) => {
-            if (
-              component.symbol &&
-              component.symbol.controllerName &&
-              component.symbol.symbolName
-            ) {
-              if (!symbolValuesInit[component.symbol.controllerName])
-                symbolValuesInit[component.symbol.controllerName] = {};
-              symbolValuesInit[component.symbol.controllerName][
-                component.symbol.symbolName
-              ] = null;
-            }
-          });
-        });
+  // useEffect(() => {
+  //   if (socketRef.current) {
+  //     socketRef.current.on('hmiConfigUpdated', (newConfigs: HMIConfig[]) => {
+  //       console.log('hmi Config Updated');
+  //       // initialize the symbolValuesRef, which contains symbol values received from all the server
+  //       let symbolValuesInit: SymbolValuesType = {};
+  //       newConfigs.forEach((pageConfig) => {
+  //         pageConfig.components.forEach((component) => {
+  //           if (
+  //             component.symbol &&
+  //             component.symbol.controllerName &&
+  //             component.symbol.symbolName
+  //           ) {
+  //             if (!symbolValuesInit[component.symbol.controllerName])
+  //               symbolValuesInit[component.symbol.controllerName] = {};
+  //             symbolValuesInit[component.symbol.controllerName][
+  //               component.symbol.symbolName
+  //             ] = null;
+  //           }
+  //         });
+  //       });
 
-        console.log(symbolValuesInit);
+  //       console.log(symbolValuesInit);
 
-        setSymbolValues(symbolValuesInit);
+  //       setSymbolValues(symbolValuesInit);
 
-        hmiConfigsDispatch({
-          type: 'reloaded',
-          newConfigs: newConfigs,
-        });
-      });
+  //       hmiConfigsDispatch({
+  //         type: 'reloaded',
+  //         newConfigs: newConfigs,
+  //       });
+  //     });
 
-      socketRef.current.on('subscribedData', (data: SymbolValuesType) => {
-        let newSymbolValues = { ...symbolValues };
+  //     socketRef.current.on('subscribedData', (data: SymbolValuesType) => {
+  //       let newSymbolValues = { ...symbolValues };
 
-        for (let controllerName in data) {
-          for (let symbolName in data[controllerName]) {
-            //if(dataExpireTimers.current[controllerName+symbolName]) clearTimeout(dataExpireTimers.current[controllerName+symbolName])
+  //       for (let controllerName in data) {
+  //         for (let symbolName in data[controllerName]) {
+  //           //if(dataExpireTimers.current[controllerName+symbolName]) clearTimeout(dataExpireTimers.current[controllerName+symbolName])
 
-            if (newSymbolValues[controllerName]) {
-              newSymbolValues[controllerName][symbolName] =
-                data[controllerName][symbolName];
-              // data expires after a preset time
-              dataExpireTimers.current[controllerName + symbolName] =
-                setTimeout(() => {
-                  //symbolValuesRef.current[controllerName][symbolName] = null;
-                }, dataExpirationTime);
-            }
-          }
-        }
-        setSymbolValues(newSymbolValues);
-      });
+  //           if (newSymbolValues[controllerName]) {
+  //             newSymbolValues[controllerName][symbolName] =
+  //               data[controllerName][symbolName];
+  //             // data expires after a preset time
+  //             dataExpireTimers.current[controllerName + symbolName] =
+  //               setTimeout(() => {
+  //                 //symbolValuesRef.current[controllerName][symbolName] = null;
+  //               }, dataExpirationTime);
+  //           }
+  //         }
+  //       }
+  //       setSymbolValues(newSymbolValues);
+  //     });
 
-      return () => {
-        if (socketRef.current) {
-          socketRef.current.off('hmiConfigUpdated');
-          socketRef.current.off('subscribedData');
-        }
-      };
-    }
-  }, [symbolValues]);
+  //     return () => {
+  //       if (socketRef.current) {
+  //         socketRef.current.off('hmiConfigUpdated');
+  //         socketRef.current.off('subscribedData');
+  //       }
+  //     };
+  //   }
+  // }, [symbolValues]);
 
   return (
     <SocketIOContext.Provider value={socketRef.current}>
