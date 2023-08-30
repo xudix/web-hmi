@@ -1,11 +1,12 @@
-import { Input, Textarea } from '@chakra-ui/react';
-import { useRef, useEffect, CSSProperties } from 'react';
+import { Input, Textarea, useStatStyles } from '@chakra-ui/react';
+import { useRef, useEffect, CSSProperties, useState, ChangeEvent } from 'react';
 import DraggableItem from '../base/DraggableItem';
 import { ComponentConfig } from '../base/Types';
 import {
   actionType,
   useUpdateHMIConfigs,
   useSymbolValues,
+  useSocketConnection,
 } from '../base/HMIContext';
 
 interface Props extends ComponentConfig {}
@@ -13,6 +14,9 @@ interface Props extends ComponentConfig {}
 export function TextInput({ id, style, x, y, ...props }: Props): JSX.Element {
   const updateHMIConfigs = useUpdateHMIConfigs();
   const symbolValues = useSymbolValues();
+  const socket = useSocketConnection();
+  let [focused, setFocused] = useState<boolean>(false);
+  let [inputValue, setInputValue] = useState<string>('');
 
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -52,10 +56,36 @@ export function TextInput({ id, style, x, y, ...props }: Props): JSX.Element {
     }, 1000);
   }
 
+  function handleValueChange(e: ChangeEvent) {
+    setInputValue(e.target?.value);
+  }
+
+  function handleLoseFocus() {
+    setFocused(false);
+    if (props.symbol && props.symbol.controllerName) {
+      let newValueObj: Record<string, Record<string, any>> = {};
+      newValueObj[props.symbol.controllerName] = {};
+      newValueObj[props.symbol.controllerName][props.symbol.symbolName] =
+        inputValue;
+      socket?.emit('writeNewValues', newValueObj);
+    }
+  }
+
+  function handleFocus() {
+    setFocused(true);
+    if (props.symbol && symbolValues[props.symbol.controllerName])
+      setInputValue(
+        symbolValues[props.symbol.controllerName][
+          props.symbol?.symbolName
+        ]?.toString()
+      );
+  }
+
   const draggableStyle: CSSProperties = {
     resize: 'horizontal',
     ...style,
   };
+  // default style for TextInput
   let inputStyle: CSSProperties = {
     resize: 'horizontal',
     height: 'fit-content',
@@ -66,6 +96,14 @@ export function TextInput({ id, style, x, y, ...props }: Props): JSX.Element {
   };
 
   inputStyle = { ...inputStyle, ...style };
+  let displayValue = inputValue;
+  if (!focused && props.symbol && symbolValues[props.symbol.controllerName])
+    displayValue =
+      symbolValues[props.symbol.controllerName][props.symbol.symbolName];
+
+  if (displayValue == undefined || displayValue == null) {
+    displayValue = '';
+  }
 
   return (
     <DraggableItem id={id} left={x} top={y} style={draggableStyle}>
@@ -75,11 +113,11 @@ export function TextInput({ id, style, x, y, ...props }: Props): JSX.Element {
         style={inputStyle}
         rows={1}
         ref={textAreaRef}
-        value={symbolValues[props.symbol?.controllerName][
-          props.symbol?.symbolName
-        ]?.toString()}
+        value={displayValue}
+        onChange={handleValueChange}
+        onFocus={handleFocus}
+        onBlur={handleLoseFocus}
       />
-      {/* <input type="text" style={inputStyle} width={1}></input> */}
     </DraggableItem>
   );
 }
