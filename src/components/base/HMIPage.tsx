@@ -1,4 +1,11 @@
-import { Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react';
+import {
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Button,
+} from '@chakra-ui/react';
 import {
   DndContext,
   useDraggable,
@@ -17,6 +24,7 @@ import { HMIConfig, ComponentConfig } from './Types';
 import DroppableCanvas from './DroppableCanvas';
 import { createElement } from 'react';
 import HMIComponents from '../user-controls/index';
+import ToolBar from './ToolBar';
 import { useHMIConfigs, useUpdateHMIConfigs, actionType } from './HMIContext';
 import Droppable from './Droppable';
 
@@ -64,6 +72,7 @@ export default function HMIPage() {
 
   const draggableMarkup = (
     <Tabs>
+      <ToolBar />
       <TabList>
         {hmiConfigs.map((hmiConfig) => {
           return <Tab key={hmiConfig.id}>{hmiConfig.name}</Tab>;
